@@ -1,5 +1,5 @@
 # ============================================================
-# RETAIL RECOMMENDATION SYSTEM — FINAL FIXED BACKEND
+# RETAIL RECOMMENDATION SYSTEM — FINAL PRODUCTION BACKEND
 # ============================================================
 
 from fastapi import FastAPI, HTTPException
@@ -14,7 +14,7 @@ import ast
 app = FastAPI(
     title="Retail Recommendation API",
     description="Apriori-based recommender system",
-    version="3.0.0"
+    version="4.0.0"
 )
 
 app.add_middleware(
@@ -27,7 +27,7 @@ app.add_middleware(
 
 BASE = os.path.dirname(__file__)
 
-# ── SAFE PARSER (🔥 MAIN FIX) ─────────────────────────────────
+# ── SAFE PARSER (handles all CSV formats) ─────────────────────
 def safe_parse_itemset(x):
     if pd.isna(x):
         return set()
@@ -38,7 +38,7 @@ def safe_parse_itemset(x):
     if "," in x and "{" not in x and "[" not in x:
         return set(i.strip().upper() for i in x.split(","))
 
-    # Case 2: try python parsing
+    # Case 2: try Python parsing
     try:
         return set(ast.literal_eval(x))
     except:
@@ -72,14 +72,14 @@ def load_rules_csv(filename):
 
 print("Loading CSVs...")
 
-# 1. Rules
+# ── Load association rules ───────────────────────────────────
 rules_df = load_rules_csv("association_rules.csv")
 if rules_df is not None:
     print(f"✅ association_rules.csv → {len(rules_df)} rules")
 else:
     rules_df = pd.DataFrame(columns=["antecedents_str","consequents_str","support","confidence","lift"])
 
-# 2. Strong rules
+# ── Load strong rules ────────────────────────────────────────
 strong_df = load_rules_csv("strong_association_rules.csv")
 if strong_df is not None:
     print(f"✅ strong_association_rules.csv → {len(strong_df)} rules")
@@ -89,7 +89,7 @@ else:
         (rules_df["confidence"] > 0.5) & (rules_df["lift"] > 1)
     ].copy()
 
-# 3. Frequent itemsets (🔥 FIXED)
+# ── Load frequent itemsets ───────────────────────────────────
 freq_path = os.path.join(BASE, "frequent_itemsets.csv")
 
 if os.path.exists(freq_path):
@@ -114,6 +114,7 @@ print("🚀 Backend Ready!\n")
 class RecommendRequest(BaseModel):
     items: List[str]
     use_strong_only: bool = False
+
 
 class RecommendResponse(BaseModel):
     recommendations: List[dict]
@@ -166,9 +167,14 @@ def get_recommendations(purchased_items, source_df, top_n=5):
                     "triggered_by": ", ".join(antecedents).title()
                 }
 
-    return sorted(results.values(), key=lambda x: (x["lift"], x["confidence"]), reverse=True)[:top_n]
+    return sorted(
+        results.values(),
+        key=lambda x: (x["lift"], x["confidence"]),
+        reverse=True
+    )[:top_n]
 
 
+# ── Popular fallback ─────────────────────────────────────────
 def get_popular_products(exclude_items, top_n=5):
     from collections import Counter
     counter = Counter()
@@ -178,6 +184,7 @@ def get_popular_products(exclude_items, top_n=5):
     for _, row in source.iterrows():
         for p in row["consequents_str"].split(","):
             p = p.strip()
+
             if not any(fuzzy_match(u, p) for u in exclude_items):
                 counter[p] += float(row["support"])
 
@@ -193,7 +200,7 @@ def get_popular_products(exclude_items, top_n=5):
     ]
 
 
-# ── API ──────────────────────────────────────────────────────
+# ── API Endpoints ────────────────────────────────────────────
 @app.get("/")
 def root():
     return {
@@ -201,7 +208,7 @@ def root():
         "rules": len(rules_df),
         "strong_rules": len(strong_df),
         "itemsets": len(freq_df),
-        "docs": "http://127.0.0.1:8000/docs"
+        "docs": "/docs"
     }
 
 
@@ -228,6 +235,8 @@ def recommend(request: RecommendRequest):
     return {"recommendations": recs, "message": "Fallback popular items", "rule_type": "popular"}
 
 
+# ── Run Server (LOCAL + RENDER) ──────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", reload=True)
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
