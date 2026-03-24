@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RetailIQ — Smart Product Recommendations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+
+  <style>
+    /* ── Design Tokens ─────────────────────────────── */
+    :root {
+      --bg:           #0d0d0f;
+      --surface:      #141417;
+      --surface-2:    #1c1c21;
+      --border:       #2a2a32;
+      --border-glow:  rgba(255,183,77,0.35);
+      --accent:       #ffb74d;
+      --accent-dim:   #e8954a;
+      --accent-glow:  rgba(255,183,77,0.12);
+      --text:         #eeeef0;
+      --text-muted:   #8888a0;
+      --text-dim:     #555568;
+      --success:      #66bb6a;
+      --error:        #ef5350;
+      --tag-bg:       #1e1e26;
+      --radius:       14px;
+      --radius-sm:    8px;
+      --shadow:       0 24px 64px rgba(0,0,0,0.6);
+      --glow:         0 0 40px rgba(255,183,77,0.08);
+    }
+
+    /* ── Reset ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 80px;
+      /* Subtle grid texture */
+      background-image:
+        linear-gradient(rgba(255,183,77,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,183,77,0.015) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    /* ── Ambient glow orb ──────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(255,183,77,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+      position: relative;
+      z-index: 1;
+      animation: fadeDown 0.7s ease both;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(255,183,77,0.2);
+      border-radius: 100px;
+      padding: 6px 16px;
+      margin-bottom: 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .logo-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      max-width: 440px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── Main Card ─────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      width: 100%;
+      max-width: 680px;
+      box-shadow: var(--shadow), var(--glow);
+      position: relative;
+      z-index: 1;
+      animation: fadeUp 0.7s 0.15s ease both;
+    }
+
+    /* subtle top accent line */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 40px; right: 40px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.5;
+      border-radius: 1px;
+    }
+
+    /* ── Section Label ─────────────────────────────── */
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    /* ── Input Area ────────────────────────────────── */
+    .input-group {
+      margin-bottom: 28px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .cart-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      pointer-events: none;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 400;
+      padding: 14px 16px 14px 46px;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s;
+      line-height: 1.6;
+    }
+
+    textarea::placeholder { color: var(--text-dim); }
+
+    textarea:focus {
+      border-color: rgba(255,183,77,0.4);
+      box-shadow: 0 0 0 3px rgba(255,183,77,0.08);
+    }
+
+    textarea:focus + .input-wrapper .cart-icon,
+    .input-wrapper:focus-within .cart-icon { opacity: 1; }
+
+    /* ── Quick-add chips ───────────────────────────── */
+    .chips-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin: 12px 0 8px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      border-color: rgba(255,183,77,0.35);
+      color: var(--accent);
+      background: var(--accent-glow);
+      transform: translateY(-1px);
+    }
+
+    .chip:active { transform: translateY(0); }
+
+    /* ── Button ────────────────────────────────────── */
+    .btn {
+      width: 100%;
+      padding: 15px 28px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0d0d0f;
+    }
+
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.12), transparent);
+    }
+
+    .btn-primary:hover {
+      background: #ffc56a;
+      box-shadow: 0 8px 24px rgba(255,183,77,0.35);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active { transform: translateY(0); box-shadow: none; }
+
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ── Loading Spinner ───────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0,0,0,0.25);
+      border-top-color: #0d0d0f;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    /* ── Results Section ───────────────────────────── */
+    #results {
+      margin-top: 36px;
+      border-top: 1px solid var(--border);
+      padding-top: 32px;
+      display: none;
+    }
+
+    #results.visible { display: block; animation: fadeUp 0.4s ease; }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .results-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+    }
+
+    .results-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 100px;
+    }
+    .badge-strong  { background: rgba(255,183,77,0.12); color: var(--accent);  border: 1px solid rgba(255,183,77,0.25); }
+    .badge-all     { background: rgba(102,187,106,0.10); color: var(--success); border: 1px solid rgba(102,187,106,0.25); }
+    .badge-popular { background: rgba(239,83,80,0.10);  color: #ff7043;        border: 1px solid rgba(239,83,80,0.25); }
+
+    /* ── Recommendation Cards ──────────────────────── */
+    .rec-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rec-item {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      align-items: center;
+      gap: 14px;
+      transition: border-color 0.2s, transform 0.2s;
+      animation: fadeUp 0.35s ease both;
+    }
+
+    .rec-item:hover {
+      border-color: rgba(255,183,77,0.25);
+      transform: translateX(3px);
+    }
+
+    .rec-rank {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .rec-item:nth-child(1) .rec-rank { border-color: rgba(255,183,77,0.4); color: var(--accent); }
+
+    .rec-name {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .rec-trigger {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 3px;
+      font-style: italic;
+    }
+
+    .rec-metrics {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .metric-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    .metric-lift     { background: rgba(255,183,77,0.1);  color: var(--accent); }
+    .metric-conf     { background: rgba(102,187,106,0.1); color: var(--success); }
+    .metric-trending { background: rgba(239,83,80,0.1);   color: #ff7043; }
+
+    /* ── Empty State / Error ───────────────────────── */
+    .state-box {
+      text-align: center;
+      padding: 32px 20px;
+      border-radius: var(--radius-sm);
+    }
+
+    .state-box .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .state-box h3 { font-size: 1rem; font-weight: 500; margin-bottom: 6px; }
+    .state-box p  { font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; }
+
+    .state-empty  { background: var(--surface-2); border: 1px solid var(--border); }
+    .state-error  { background: rgba(239,83,80,0.06); border: 1px solid rgba(239,83,80,0.2); }
+    .state-error h3 { color: var(--error); }
+
+    /* ── Basket Preview ────────────────────────────── */
+    .basket-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+
+    .basket-tag {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Footer ────────────────────────────────────── */
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-dim);
+      z-index: 1;
+      position: relative;
+      line-height: 1.8;
+    }
+
+    footer span { color: var(--text-muted); }
+    footer a    { color: var(--accent); text-decoration: none; }
+
+    /* ── Divider ───────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* ── Keyframes ─────────────────────────────────── */
+    @keyframes fadeDown  { from { opacity:0; transform: translateY(-16px); } to { opacity:1; transform: none; } }
+    @keyframes fadeUp    { from { opacity:0; transform: translateY(12px);  } to { opacity:1; transform: none; } }
+    @keyframes spin      { to { transform: rotate(360deg); } }
+    @keyframes pulse     { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    /* stagger rec items */
+    .rec-item:nth-child(1) { animation-delay: 0.05s; }
+    .rec-item:nth-child(2) { animation-delay: 0.10s; }
+    .rec-item:nth-child(3) { animation-delay: 0.15s; }
+    .rec-item:nth-child(4) { animation-delay: 0.20s; }
+    .rec-item:nth-child(5) { animation-delay: 0.25s; }
+
+    /* ── Responsive ────────────────────────────────── */
+    @media (max-width: 520px) {
+      .card { padding: 28px 20px; }
+      .rec-item { grid-template-columns: 28px 1fr; }
+      .rec-metrics { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <header>
+    <div class="logo-badge">Association Rule Mining · Apriori</div>
+    <h1>Retail<em>IQ</em></h1>
+    <p class="subtitle">Add items from your shopping basket and discover products customers frequently buy together.</p>
+  </header>
+
+  <!-- ── Main Card ──────────────────────────────────────── -->
+  <div class="card">
+
+    <!-- Input Section -->
+    <div class="input-group">
+      <p class="section-label">Your Basket</p>
+
+      <div class="input-wrapper">
+        <span class="cart-icon">🛒</span>
+        <textarea
+          id="itemInput"
+          placeholder="e.g.  Baked Bread/Buns/Rolls, Cheese, Eggs"
+          rows="2"
+        ></textarea>
+      </div>
+
+      <p class="chips-label">Quick add →</p>
+      <div class="chips" id="quickChips">
+        <span class="chip" data-item="Baked Bread/Buns/Rolls">🍞 Bread</span>
+        <span class="chip" data-item="Fluid Milk Products">🥛 Milk</span>
+        <span class="chip" data-item="Eggs">🥚 Eggs</span>
+        <span class="chip" data-item="Cheese">🧀 Cheese</span>
+        <span class="chip" data-item="Soft Drinks">🥤 Soft Drinks</span>
+        <span class="chip" data-item="Beef">🥩 Beef</span>
+        <span class="chip" data-item="Dry Noodles/Pasta">🍝 Pasta</span>
+        <span class="chip" data-item="Cold Cereal">🥣 Cereal</span>
+        <span class="chip" data-item="Vegetables - All Others">🥦 Vegetables</span>
+        <span class="chip" data-item="Tropical Fruit">🍍 Tropical Fruit</span>
+        <span class="chip" data-item="Cheeses">🫙 Cheeses (Deli)</span>
+        <span class="chip" data-item="Bag Snacks">🍿 Bag Snacks</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="recommendBtn" onclick="getRecommendations()">
+      Get Recommendations →
+    </button>
+
+    <!-- Results Section -->
+    <div id="results">
+      <div class="results-header">
+        <span class="results-title">Recommended for You</span>
+        <span class="results-count" id="resultsCount"></span>
+      </div>
+      <div id="basketPreview" class="basket-preview"></div>
+      <div id="resultsList"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────── -->
+  <footer>
+    Powered by <span>Apriori Algorithm · mlxtend</span> &nbsp;·&nbsp;
+    API at <a href="http://127.0.0.1:8000/docs" target="_blank">localhost:8000/docs</a>
+    <br/>Built with FastAPI + Vanilla JS
+  </footer>
+
+  <!-- ── JavaScript ─────────────────────────────────────── -->
+  <script>
+    // ── Configuration ──────────────────────────────────────
+    const API_URL = "http://127.0.0.1:8000/recommend";
+
+    // ── Quick-add Chip Logic ───────────────────────────────
+    document.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const item = chip.dataset.item;
+        const input = document.getElementById("itemInput");
+        const current = input.value.trim();
+
+        // Avoid duplicates
+        const existing = current
+          .split(",")
+          .map(s => s.trim().toLowerCase())
+          .filter(Boolean);
+
+        if (!existing.includes(item.toLowerCase())) {
+          input.value = current
+            ? current + ", " + item
+            : item;
+        }
+
+        // Visual feedback on chip
+        chip.style.borderColor = "rgba(255,183,77,0.6)";
+        chip.style.color = "var(--accent)";
+        setTimeout(() => {
+          chip.style.borderColor = "";
+          chip.style.color = "";
+        }, 1500);
+      });
+    });
+
+    // ── Main Recommendation Function ───────────────────────
+    async function getRecommendations() {
+      const input   = document.getElementById("itemInput");
+      const btn     = document.getElementById("recommendBtn");
+      const results = document.getElementById("results");
+
+      // Parse comma-separated input into an array
+      const rawText = input.value.trim();
+      if (!rawText) {
+        showError("Please enter at least one product before searching.");
+        return;
+      }
+
+      const items = rawText
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      if (items.length === 0) {
+        showError("No valid items found. Use commas to separate products.");
+        return;
+      }
+
+      // ── Loading State ──────────────────────────────────
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Searching rules…';
+      results.classList.remove("visible");
+
+      try {
+        // ── POST to FastAPI ──────────────────────────────
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items })
+        });
+
+        // Handle HTTP errors (e.g. 400, 500)
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail || `Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // ── Render Results ───────────────────────────────
+        renderResults(items, data);
+
+      } catch (err) {
+        // Network error or server unreachable
+        if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+          showError(
+            "Cannot reach the API server. Make sure you ran:<br>" +
+            "<code style='font-family:monospace;font-size:12px;color:var(--accent)'>" +
+            "uvicorn main:app --reload --port 8000</code>"
+          );
+        } else {
+          showError(err.message);
+        }
+      } finally {
+        // Always restore button
+        btn.disabled = false;
+        btn.innerHTML = "Get Recommendations →";
+      }
+    }
+
+    // ── Render Results ─────────────────────────────────────
+    function renderResults(items, data) {
+      const results      = document.getElementById("results");
+      const resultsList  = document.getElementById("resultsList");
+      const countBadge   = document.getElementById("resultsCount");
+      const basketPreview = document.getElementById("basketPreview");
+
+      // Show basket tags
+      basketPreview.innerHTML = items
+        .map(item => `<span class="basket-tag">${escapeHtml(item)}</span>`)
+        .join("");
+
+      // Show badge based on which tier fired
+      const badgeMap = {
+        strong:  { cls: "badge-strong",  label: "⚡ Strong Rules" },
+        all:     { cls: "badge-all",     label: "📋 All Rules"    },
+        popular: { cls: "badge-popular", label: "🔥 Popular"      }
+      };
+      const badge = badgeMap[data.rule_type] || badgeMap.all;
+      countBadge.className = `results-count ${badge.cls}`;
+      countBadge.textContent = badge.label;
+
+      // Show message below title
+      let msgEl = document.getElementById("resultsMessage");
+      if (!msgEl) {
+        msgEl = document.createElement("p");
+        msgEl.id = "resultsMessage";
+        msgEl.style.cssText = "font-size:12px;color:var(--text-muted);margin-bottom:16px;";
+        document.getElementById("basketPreview").after(msgEl);
+      }
+      msgEl.textContent = data.message;
+
+      // No recommendations returned
+      if (!data.recommendations || data.recommendations.length === 0) {
+        resultsList.innerHTML = `
+          <div class="state-box state-empty">
+            <div class="icon">🔍</div>
+            <h3>No Results</h3>
+            <p>${escapeHtml(data.message || "Try different products.")}</p>
+          </div>`;
+        results.classList.add("visible");
+        return;
+      }
+
+      // Render recommendation cards
+      resultsList.innerHTML = `<div class="rec-list">` +
+        data.recommendations.map((rec, i) => {
+          const isFallback = rec.lift === null;
+          const metrics = isFallback
+            ? `<span class="metric-pill metric-trending">🔥 Popular</span>`
+            : `<span class="metric-pill metric-lift">↑ ${rec.lift}× lift</span>
+               <span class="metric-pill metric-conf">${(rec.confidence * 100).toFixed(1)}% conf</span>`;
+          return `
+          <div class="rec-item">
+            <div class="rec-rank">${String(i + 1).padStart(2, "0")}</div>
+            <div>
+              <div class="rec-name">${escapeHtml(rec.product)}</div>
+              <div class="rec-trigger">via ${escapeHtml(rec.triggered_by)}</div>
+            </div>
+            <div class="rec-metrics">${metrics}</div>
+          </div>`;
+        }).join("") + `</div>`;
+
+      results.classList.add("visible");
+      results.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    // ── Error Renderer ─────────────────────────────────────
+    function showError(message) {
+      const results      = document.getElementById("results");
+      const resultsList  = document.getElementById("resultsList");
+      const countBadge   = document.getElementById("resultsCount");
+      const basketPreview = document.getElementById("basketPreview");
+
+      basketPreview.innerHTML = "";
+      countBadge.textContent = "error";
+      resultsList.innerHTML = `
+        <div class="state-box state-error">
+          <div class="icon">⚠️</div>
+          <h3>Something went wrong</h3>
+          <p>${message}</p>
+        </div>`;
+      results.classList.add("visible");
+    }
+
+    // ── Utility: prevent XSS ──────────────────────────────
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.appendChild(document.createTextNode(String(str)));
+      return div.innerHTML;
+    }
+
+    // ── Enter key submits ──────────────────────────────────
+    document.getElementById("itemInput").addEventListener("keydown", e => {
+      if (e.key === "Enter" && e.ctrlKey) getRecommendations();
+    });
+  </script>
+
+</body>
+</html>
